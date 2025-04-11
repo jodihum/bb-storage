@@ -34,6 +34,7 @@ func NewSpiffeAuthorizer(config *pb.AuthorizerConfiguration) Authorizer {
 
 // Authorize implements the authorizer inferface
 func (s *SpiffeAuthorizer) Authorize(ctx context.Context, instanceNames []digest.InstanceName) []error {
+	log.Printf("JODI - in SpiffeAuthorizer")
 	fillErrors := func(err error) []error {
 		errs := make([]error, len(instanceNames))
 		if err != nil {
