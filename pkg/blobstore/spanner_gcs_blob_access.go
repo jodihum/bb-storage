@@ -538,6 +538,7 @@ func NewSpannerGCSBlobAccess(databaseName string, gcsBucketName string, readBuff
 		return nil, util.StatusWrap(err, "Can't access GCS bucket")
 	}
 
+	log.Printf("JODI - testing")
 	log.Printf("NewSpannerGCSBlobAccess type %s", storageType)
 
 	node := os.Getenv("NODE_NAME")
