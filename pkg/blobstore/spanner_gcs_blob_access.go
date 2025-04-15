@@ -732,6 +732,7 @@ func (ba *spannerGCSBlobAccess) Get(ctx context.Context, digest digest.Digest) b
 // configureRetries configures a custom retry strategy for a single API call.
 // copied from: https://cloud.google.com/storage/docs/retry-strategy#go_1
 func configureRetries(bucket, object string) error {
+	log.Printf("JODI configuring retries for : bucket: %s object: %s", bucket, object)
 	// bucket := "bucket-name"
 	// object := "object-name"
 	ctx := context.Background()
