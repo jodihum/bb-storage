@@ -58,6 +58,7 @@ import (
 	"cloud.google.com/go/storage"
 
 	remoteexecution "github.com/bazelbuild/remote-apis/build/bazel/remote/execution/v2"
+	"github.com/googleapis/gax-go/v2"
 )
 
 const (
@@ -582,7 +583,7 @@ func (ba *spannerGCSBlobAccess) delete(ctx context.Context, tableName string, ke
 	if (loc & LOC_GCS) != 0 {
 		object := ba.gcsBucket.Object(key)
 		// TODO JODI - call configureTRetries here
-		retry_err := configureRetries(ba.gcsBucket, obj)
+		retry_err := configureRetries(ba.gcsBucket.name, key)
 		if retry_err != nil {
 			log.Printf("JODI error configuring retries for delete: %v", retry_err)
 		}
@@ -661,7 +662,7 @@ func (ba *spannerGCSBlobAccess) Get(ctx context.Context, digest digest.Digest) b
 		obj := ba.gcsBucket.Object(key)
 
 		// TODO JODI - call configureTRetries here
-		retry_err := configureRetries(ba.gcsBucket, obj)
+		retry_err := configureRetries(ba.gcsBucket.name, key)
 		if retry_err != nil {
 			log.Printf("JODI error configuring retries for get: %v", retry_err)
 		}
@@ -812,7 +813,7 @@ func (ba *spannerGCSBlobAccess) Put(ctx context.Context, digest digest.Digest, b
 		obj := ba.gcsBucket.Object(key)
 		w := obj.NewWriter(ctx)
 		// TODO JODI - call configureTRetries here
-		retry_err := configureRetries(ba.gcsBucket, obj)
+		retry_err := configureRetries(ba.gcsBucket.name, key)
 		if retry_err != nil {
 			log.Printf("JODI error configuring retries for put: %v", retry_err)
 		}
