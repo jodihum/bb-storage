@@ -581,6 +581,11 @@ func (ba *spannerGCSBlobAccess) delete(ctx context.Context, tableName string, ke
 	// Now if it was also in GCS, delete it there
 	if (loc & LOC_GCS) != 0 {
 		object := ba.gcsBucket.Object(key)
+		// TODO JODI - call configureTRetries here
+		retry_err := configureRetries(ba.gcsBucket, obj)
+		if retry_err != nil {
+			log.Printf("JODI error configuring retries for delete: %v", retry_err)
+		}
 		start := time.Now()
 		err = object.Delete(ctx)
 		backendOperationsDurationSeconds.WithLabelValues(ba.storageType, BE_GCS, BE_DEL).Observe(time.Now().Sub(start).Seconds())
@@ -655,6 +660,13 @@ func (ba *spannerGCSBlobAccess) Get(ctx context.Context, digest digest.Digest) b
 		// We gotta go get it from GCS
 		obj := ba.gcsBucket.Object(key)
 
+		// TODO JODI - call configureTRetries here
+		retry_err := configureRetries(ba.gcsBucket, obj)
+		if retry_err != nil {
+			log.Printf("JODI error configuring retries for get: %v", retry_err)
+		}
+
+
 		r, err := obj.NewReader(ctx)
 		if err != nil {
 			// If we couldn't read the bucket, then let's delete it from spanner (and from gcs if we can!)
@@ -717,6 +729,48 @@ func (ba *spannerGCSBlobAccess) Get(ctx context.Context, digest digest.Digest) b
 	}
 	return b
 }
+// configureRetries configures a custom retry strategy for a single API call.
+// copied from: https://cloud.google.com/storage/docs/retry-strategy#go_1
+func configureRetries(bucket, object string) error {
+	// bucket := "bucket-name"
+	// object := "object-name"
+	ctx := context.Background()
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		return fmt.Errorf("storage.NewClient: %w", err)
+	}
+	defer client.Close()
+
+	// Configure retries for all operations using this ObjectHandle. Retries may
+	// also be configured on the BucketHandle or Client types.
+	o := client.Bucket(bucket).Object(object).Retryer(
+		// Use WithBackoff to control the timing of the exponential backoff.
+		storage.WithBackoff(gax.Backoff{
+			// Set the initial retry delay to a maximum of 2 seconds. The length of
+			// pauses between retries is subject to random jitter.
+			Initial: 2 * time.Second,
+			// Set the maximum retry delay to 60 seconds.
+			Max: 60 * time.Second,
+			// Set the backoff multiplier to 3.0.
+			Multiplier: 3,
+		}),
+		// Use WithPolicy to customize retry so that all requests are retried even
+		// if they are non-idempotent.
+		storage.WithPolicy(storage.RetryAlways),
+	)
+
+	// // Use context timeouts to set an overall deadline on the call, including all
+	// // potential retries.
+	// ctx, cancel := context.WithTimeout(ctx, 500*time.Second)
+	// defer cancel()
+
+	// // Delete an object using the specified retry policy.
+	// if err := o.Delete(ctx); err != nil {
+	// 	return fmt.Errorf("Object(%q).Delete: %w", object, err)
+	// }
+	// fmt.Fprintf(w, "Blob %v deleted with a customized retry strategy.\n", object)
+	return nil
+}
 
 func (ba *spannerGCSBlobAccess) Put(ctx context.Context, digest digest.Digest, b buffer.Buffer) error {
 	if err := util.StatusFromContext(ctx); err != nil {
@@ -756,6 +810,11 @@ func (ba *spannerGCSBlobAccess) Put(ctx context.Context, digest digest.Digest, b
 	if size > maxSpannerRecSz {
 		obj := ba.gcsBucket.Object(key)
 		w := obj.NewWriter(ctx)
+		// TODO JODI - call configureTRetries here
+		retry_err := configureRetries(ba.gcsBucket, obj)
+		if retry_err != nil {
+			log.Printf("JODI error configuring retries for put: %v", retry_err)
+		}
 		start := time.Now()
 		var err error
 		if _, err = io.Copy(w, b.ToReader()); err == nil {
