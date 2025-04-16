@@ -582,8 +582,21 @@ func (ba *spannerGCSBlobAccess) delete(ctx context.Context, tableName string, ke
 
 	// Now if it was also in GCS, delete it there
 	if (loc & LOC_GCS) != 0 {
-		object := ba.gcsBucket.Object(key)
-		// TODO JODI - call configureTRetries here
+		object := ba.gcsBucket.Object(key).Retryer(
+			// Use WithBackoff to control the timing of the exponential backoff.
+			storage.WithBackoff(gax.Backoff{
+				// Set the initial retry delay to a maximum of 2 seconds. The length of
+				// pauses between retries is subject to random jitter.
+				Initial: 2 * time.Second,
+				// Set the maximum retry delay to 60 seconds.
+				Max: 60 * time.Second,
+				// Set the backoff multiplier to 3.0.
+				Multiplier: 3,
+			}),
+			// Use WithPolicy to customize retry so that all requests are retried even
+			// if they are non-idempotent.
+			storage.WithPolicy(storage.RetryAlways),
+		)
 		start := time.Now()
 		err = object.Delete(ctx)
 		backendOperationsDurationSeconds.WithLabelValues(ba.storageType, BE_GCS, BE_DEL).Observe(time.Now().Sub(start).Seconds())
@@ -772,8 +785,21 @@ func (ba *spannerGCSBlobAccess) Put(ctx context.Context, digest digest.Digest, b
 	var inlineData []byte = nil
 	now := time.Now().UTC()
 	if size > maxSpannerRecSz {
-		obj := ba.gcsBucket.Object(key)
-		// TODO JODI - call configureTRetries here
+		obj := ba.gcsBucket.Object(key).Retryer(
+			// Use WithBackoff to control the timing of the exponential backoff.
+			storage.WithBackoff(gax.Backoff{
+				// Set the initial retry delay to a maximum of 2 seconds. The length of
+				// pauses between retries is subject to random jitter.
+				Initial: 2 * time.Second,
+				// Set the maximum retry delay to 60 seconds.
+				Max: 60 * time.Second,
+				// Set the backoff multiplier to 3.0.
+				Multiplier: 3,
+			}),
+			// Use WithPolicy to customize retry so that all requests are retried even
+			// if they are non-idempotent.
+			storage.WithPolicy(storage.RetryAlways),
+		)
 		w := obj.NewWriter(ctx)
 
 		start := time.Now()
