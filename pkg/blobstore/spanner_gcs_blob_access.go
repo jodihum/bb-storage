@@ -585,13 +585,12 @@ func (ba *spannerGCSBlobAccess) delete(ctx context.Context, tableName string, ke
 		object := ba.gcsBucket.Object(key).Retryer(
 			// Use WithBackoff to control the timing of the exponential backoff.
 			storage.WithBackoff(gax.Backoff{
-				// Set the initial retry delay to a maximum of 2 seconds. The length of
+				// Set the initial retry delay. The length of
 				// pauses between retries is subject to random jitter.
-				Initial: 2 * time.Second,
-				// Set the maximum retry delay to 60 seconds.
-				Max: 60 * time.Second,
-				// Set the backoff multiplier to 3.0.
-				Multiplier: 3,
+				Initial: 1 * time.Second,
+				Max: 900 * time.Second,
+				// Set the backoff multiplier 
+				Multiplier: 2,
 			}),
 			// Use WithPolicy to customize retry so that all requests are retried even
 			// if they are non-idempotent.
@@ -672,13 +671,12 @@ func (ba *spannerGCSBlobAccess) Get(ctx context.Context, digest digest.Digest) b
 		obj := ba.gcsBucket.Object(key).Retryer(
 			// Use WithBackoff to control the timing of the exponential backoff.
 			storage.WithBackoff(gax.Backoff{
-				// Set the initial retry delay to a maximum of 2 seconds. The length of
+				// Set the initial retry delay. The length of
 				// pauses between retries is subject to random jitter.
-				Initial: 2 * time.Second,
-				// Set the maximum retry delay to 60 seconds.
-				Max: 60 * time.Second,
-				// Set the backoff multiplier to 3.0.
-				Multiplier: 3,
+				Initial: 1 * time.Second,
+				Max: 900 * time.Second,
+				// Set the backoff multiplier 
+				Multiplier: 2,
 			}),
 			// Use WithPolicy to customize retry so that all requests are retried even
 			// if they are non-idempotent.
@@ -788,13 +786,12 @@ func (ba *spannerGCSBlobAccess) Put(ctx context.Context, digest digest.Digest, b
 		obj := ba.gcsBucket.Object(key).Retryer(
 			// Use WithBackoff to control the timing of the exponential backoff.
 			storage.WithBackoff(gax.Backoff{
-				// Set the initial retry delay to a maximum of 2 seconds. The length of
+				// Set the initial retry delay. The length of
 				// pauses between retries is subject to random jitter.
-				Initial: 2 * time.Second,
-				// Set the maximum retry delay to 60 seconds.
-				Max: 60 * time.Second,
-				// Set the backoff multiplier to 3.0.
-				Multiplier: 3,
+				Initial: 1 * time.Second,
+				Max: 900 * time.Second,
+				// Set the backoff multiplier 
+				Multiplier: 2,
 			}),
 			// Use WithPolicy to customize retry so that all requests are retried even
 			// if they are non-idempotent.
