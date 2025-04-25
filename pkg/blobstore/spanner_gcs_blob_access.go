@@ -748,7 +748,11 @@ func (ba *spannerGCSBlobAccess) Get(ctx context.Context, digest digest.Digest) b
 
 
 func (ba *spannerGCSBlobAccess) Put(ctx context.Context, digest digest.Digest, b buffer.Buffer) error {
-	if err := util.StatusFromContext(ctx); err != nil {
+	ctx2, cancel2 := context.WithTimeout(ctx, 3600*time.Second)
+	defer cancel2()
+	
+
+	if err := util.StatusFromContext(ctx2); err != nil {
 		b.Discard()
 		return err
 	}
@@ -772,7 +776,7 @@ func (ba *spannerGCSBlobAccess) Put(ctx context.Context, digest digest.Digest, b
 			return util.StatusWrap(err, "Can't convert ActionResult")
 		}
 
-		digestKeys, err = ba.getDigestKeysFromActionResult(ctx, digest.GetDigestFunction(), actionResult.(*remoteexecution.ActionResult))
+		digestKeys, err = ba.getDigestKeysFromActionResult(ctx2, digest.GetDigestFunction(), actionResult.(*remoteexecution.ActionResult))
 		if err != nil {
 			b2.Discard()
 			return util.StatusWrap(err, "Can't get dependent blobs from ActionResult")
@@ -797,7 +801,7 @@ func (ba *spannerGCSBlobAccess) Put(ctx context.Context, digest digest.Digest, b
 			// if they are non-idempotent.
 			storage.WithPolicy(storage.RetryAlways),
 		)
-		w := obj.NewWriter(ctx)
+		w := obj.NewWriter(ctx2)
 
 		start := time.Now()
 		var err error
@@ -850,7 +854,7 @@ func (ba *spannerGCSBlobAccess) Put(ctx context.Context, digest digest.Digest, b
 	}
 
 	start := time.Now()
-	_, err = ba.spannerClient.Apply(ctx, []*spanner.Mutation{insertMut})
+	_, err = ba.spannerClient.Apply(ctx2, []*spanner.Mutation{insertMut})
 	backendOperationsDurationSeconds.WithLabelValues(ba.storageType, BE_SPANNER, BE_PUT).Observe(time.Now().Sub(start).Seconds())
 	if err != nil {
 		return util.StatusWrapfWithCode(err, codes.Internal, "Can't apply mutation for Blob %s", key)
@@ -858,10 +862,10 @@ func (ba *spannerGCSBlobAccess) Put(ctx context.Context, digest digest.Digest, b
 
 	if ba.storageType == "AC" {
 		// If this is an overwrite, remove any entries for this AC entry from the Assoc table
-		ba.deleteAssociationsFromSpanner(ctx, key)
+		ba.deleteAssociationsFromSpanner(ctx2, key)
 		// Add new entries to the Assoc table
 		if digestKeys != nil {
-			ba.addAssociationsToSpanner(ctx, key, digestKeys, now)
+			ba.addAssociationsToSpanner(ctx2, key, digestKeys, now)
 		}
 	}
 	return nil
