@@ -808,6 +808,8 @@ func (ba *spannerGCSBlobAccess) Put(ctx context.Context, digest digest.Digest, b
 		if _, err = io.Copy(w, b.ToReader()); err == nil {
 			if err = w.Close(); err != nil {
 				log.Printf("Blob %s can't be copied to GCS, close failed: %v", key, err)
+			} else {
+				log.Printf("Blob %s successfully copied to GCS", key)
 			}
 		} else {
 			log.Printf("Blob %s can't be copied to GCS, write failed: %v", key, err)
