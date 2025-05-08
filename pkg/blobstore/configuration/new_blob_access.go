@@ -394,7 +394,7 @@ func (nc *simpleNestedBlobAccessCreator) newNestedBlobAccessBare(configuration *
 			creator.GetDefaultCapabilitiesProvider(),
 			clientOptions)
 		if err != nil {
-			return BlobAccessInfo{}, "", util.StatusWrap(err, "Failed to create SpannerGcs blob access")
+			return BlobAccessInfo{}, "", util.StatusWrapf(err, "Failed to create SpannerGcs blob access with bucket name %s", backend.SpannerGcs.GcsBucketName)
 		}
 		return BlobAccessInfo{
 			BlobAccess: blobAccess,
