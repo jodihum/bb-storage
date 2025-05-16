@@ -570,7 +570,7 @@ func NewSpannerGCSBlobAccess(databaseName string, gcsBucketName string, readBuff
 
 	// If the GCS bucket doesn't exist, create it.
 	_, err = gcsBucket.Attrs(ctx)
-	if errors.Is(err, storage.ErrBucketNotExist) {ZZ
+	if errors.Is(err, storage.ErrBucketNotExist) {
 		err = createGCSBucket(ctx, gcsBucket, databaseName, daysToLive)
 		if err != nil {
 			// We could have raced with another pod.  Check if the bucket exists.
