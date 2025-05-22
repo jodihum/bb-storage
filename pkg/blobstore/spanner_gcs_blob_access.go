@@ -1044,7 +1044,7 @@ func (ba *spannerGCSBlobAccess) addAssociationsToSpanner(ctx context.Context, ke
 		_, err := txn.Update(ctx, stmt)
 		if err != nil {
 			spannerReftimeUpdateFailedCount.Inc()
-			log.Printf("Can't add associations for action %s: %v", key, err)
+			log.Printf("Can't add associations for action %s and digests %v: %v", key, digestKeys, err)
 			return err
 		}
 		return nil
