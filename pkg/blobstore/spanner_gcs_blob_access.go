@@ -668,6 +668,7 @@ func (ba *spannerGCSBlobAccess) Get(ctx context.Context, digest digest.Digest) b
 	// Grab the row itself
 	start := time.Now()
 	now := start.UTC()
+	log.Printf("JODI - Going to read row from table %s for key %s",tableName, key)
 	row, err := ba.spannerClient.Single().ReadRow(ctx, tableName, spanner.Key{key}, []string{"ReferenceTime", "InlineData"})
 	backendOperationsDurationSeconds.WithLabelValues(ba.storageType, BE_SPANNER, BE_GET).Observe(time.Now().Sub(start).Seconds())
 	if err != nil {
@@ -903,6 +904,7 @@ func (ba *spannerGCSBlobAccess) Put(ctx context.Context, digest digest.Digest, b
 	}
 
 	start := time.Now()
+	log.Printf("JODI - Adding blob %s to table  %s", key, tableName)
 	_, err = ba.spannerClient.Apply(ctx2, []*spanner.Mutation{insertMut})
 	backendOperationsDurationSeconds.WithLabelValues(ba.storageType, BE_SPANNER, BE_PUT).Observe(time.Now().Sub(start).Seconds())
 	if err != nil {
