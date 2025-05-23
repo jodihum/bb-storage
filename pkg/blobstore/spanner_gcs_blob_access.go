@@ -673,6 +673,8 @@ func (ba *spannerGCSBlobAccess) Get(ctx context.Context, digest digest.Digest) b
 	backendOperationsDurationSeconds.WithLabelValues(ba.storageType, BE_SPANNER, BE_GET).Observe(time.Now().Sub(start).Seconds())
 	if err != nil {
 		return buffer.NewBufferFromError(util.StatusWrapfWithCode(err, codes.NotFound, "GET error: ReadRow key %s failed", key))
+	} else {
+		log.Printf("JODI - Successfully read row from table %s for key %s",tableName, key)
 	}
 
 	var s struct {
