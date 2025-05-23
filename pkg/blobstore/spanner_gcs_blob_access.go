@@ -588,7 +588,6 @@ func NewSpannerGCSBlobAccess(databaseName string, gcsBucketName string, readBuff
 		return nil, util.StatusWrap(err, "Can't access GCS bucket")
 	}
 
-	log.Printf("JODI - testing")
 	log.Printf("NewSpannerGCSBlobAccess type %s", storageType)
 
 	node := os.Getenv("NODE_NAME")
@@ -860,7 +859,7 @@ func (ba *spannerGCSBlobAccess) Put(ctx context.Context, digest digest.Digest, b
 				log.Printf("Blob %s successfully copied to GCS", key)
 			}
 		} else {
-			log.Printf("Blob %s can't be copied to GCS, write failed: %v", key, err)
+			log.Printf("JODI - Blob %s can't be copied to GCS, write failed: %v", key, err)
 		}
 		backendOperationsDurationSeconds.WithLabelValues(ba.storageType, BE_GCS, BE_PUT).Observe(time.Now().Sub(start).Seconds())
 		if err != nil {
@@ -877,10 +876,10 @@ func (ba *spannerGCSBlobAccess) Put(ctx context.Context, digest digest.Digest, b
 	} else {
 		inlineData, err = b.ToByteSlice(int(maxSpannerRecSz))
 		if err != nil {
-			return util.StatusWrapfWithCode(err, codes.Internal, "Blob %s can't be copied to Spanner", key)
+			return util.StatusWrapfWithCode(err, codes.Internal, "JODI - Blob %s can't be copied to Spanner", key)
 		}
 		if len(inlineData) == 0 {
-			log.Printf("WARNING: ByteSlice size is 0, expected %d, key %s", size, key)
+			log.Printf("JODI - WARNING: ByteSlice size is 0, expected %d, key %s", size, key)
 		}
 	}
 
@@ -1044,7 +1043,7 @@ func (ba *spannerGCSBlobAccess) addAssociationsToSpanner(ctx context.Context, ke
 		_, err := txn.Update(ctx, stmt)
 		if err != nil {
 			spannerReftimeUpdateFailedCount.Inc()
-			log.Printf("Can't add associations for action %s and digests %v: %v", key, digestKeys, err)
+			log.Printf("JODI - Can't add associations for action %s and digests %v: %v", key, digestKeys, err)
 			return err
 		}
 		return nil
