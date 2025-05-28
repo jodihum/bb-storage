@@ -321,11 +321,14 @@ func createSpannerTables(ctx context.Context, spannerClient *spanner.Client, dat
 			Key STRING(MAX),
 			ReferenceTime TIMESTAMP NOT NULL,
 			InlineData BYTES(MAX),
-		) PRIMARY KEY(Key, ReferenceTime)`
+		) PRIMARY KEY(Key)`
+		s2 :=  `CREATE INDEX AC_Key_ReferenceTime ON ` + acTableName + ` (Key, ReferenceTime)`
+
 		op, err := cl.UpdateDatabaseDdl(ctx, &dbpb.UpdateDatabaseDdlRequest{
 			Database: databaseName,
 			Statements: []string{
 				s,
+				s2,
 			},
 		})
 		if err == nil {
@@ -347,7 +350,8 @@ func createSpannerTables(ctx context.Context, spannerClient *spanner.Client, dat
 			Key STRING(MAX),
 			ReferenceTime TIMESTAMP NOT NULL,
 			InlineData BYTES(MAX),
-		) PRIMARY KEY(Key, ReferenceTime)`
+		) PRIMARY KEY(Key)`
+		s2 :=  `CREATE INDEX CAS_Key_ReferenceTime ON ` + casTableName + ` (Key, ReferenceTime)`
 		op, err := cl.UpdateDatabaseDdl(ctx, &dbpb.UpdateDatabaseDdlRequest{
 			Database: databaseName,
 			Statements: []string{
