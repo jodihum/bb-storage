@@ -356,6 +356,7 @@ func createSpannerTables(ctx context.Context, spannerClient *spanner.Client, dat
 			Database: databaseName,
 			Statements: []string{
 				s,
+				s2,
 			},
 		})
 		if err == nil {
