@@ -673,13 +673,13 @@ func (ba *spannerGCSBlobAccess) Get(ctx context.Context, digest digest.Digest) b
 	// Grab the row itself
 	start := time.Now()
 	now := start.UTC()
-	log.Printf("JODI - Going to read row from table %s for key %s",tableName, key)
+	//log.Printf("JODI - Going to read row from table %s for key %s",tableName, key)
 	row, err := ba.spannerClient.Single().ReadRow(ctx, tableName, spanner.Key{key}, []string{"ReferenceTime", "InlineData"})
 	backendOperationsDurationSeconds.WithLabelValues(ba.storageType, BE_SPANNER, BE_GET).Observe(time.Now().Sub(start).Seconds())
 	if err != nil {
 		return buffer.NewBufferFromError(util.StatusWrapfWithCode(err, codes.NotFound, "GET error: ReadRow key %s failed", key))
 	} else {
-		log.Printf("JODI - Successfully read row from table %s for key %s",tableName, key)
+		//log.Printf("JODI - Successfully read row from table %s for key %s",tableName, key)
 	}
 
 	var s struct {
@@ -771,7 +771,10 @@ func (ba *spannerGCSBlobAccess) Get(ctx context.Context, digest digest.Digest) b
 			keys := []string{key}
 			//TODO JODI - only want to do this if more than 7 days old
 			if now.After(s.ReferenceTime.Add(ba.expirationAge/2)) {
+				log.Printf("JODI Updating old refernce time for AC %s", key)
 				go ba.touchSpannerObjects(context.Background(), tableName, keys, now)
+			} else {
+				log.Printf("JODI NOT Updating old refernce time for AC %s", key)
 			}
 
 			stmt := spanner.NewStatement(`SELECT DigestKey FROM ` + assocTableName + ` WHERE ActionKey = @key`)
@@ -795,6 +798,7 @@ func (ba *spannerGCSBlobAccess) Get(ctx context.Context, digest digest.Digest) b
 			})
 			if len(keysToTouch) != 0 {
 				// TODO JODI - But always do this? 
+				log.Printf("JODI Updating old refernce time for CAS %s", key)
 				go spannerGCSCAS.touchSpannerObjects(context.Background(), casTableName, keysToTouch, now)
 			}
 		}()
@@ -835,7 +839,7 @@ func (ba *spannerGCSBlobAccess) findAssocforCAS(ctx context.Context, key string)
 		assocExists = false
 		return false, nil
 	}
-	
+
 	err = row.Columns(&assocExists)
 
 	if err != nil {
@@ -956,7 +960,7 @@ func (ba *spannerGCSBlobAccess) Put(ctx context.Context, digest digest.Digest, b
 	}
 
 	start := time.Now()
-	log.Printf("JODI - Adding blob %s to table  %s", key, tableName)
+	//log.Printf("JODI - Adding blob %s to table  %s", key, tableName)
 	_, err = ba.spannerClient.Apply(ctx2, []*spanner.Mutation{insertMut})
 	backendOperationsDurationSeconds.WithLabelValues(ba.storageType, BE_SPANNER, BE_PUT).Observe(time.Now().Sub(start).Seconds())
 	if err != nil {
@@ -1034,6 +1038,7 @@ func (ba *spannerGCSBlobAccess) FindMissing(ctx context.Context, digests digest.
 	// efficient and prevent large CAS blobs from being evicted before and action cache entries that reference them.
 	now := time.Now().UTC()
 	if len(keysToTouch) != 0 {
+		log.Printf("JODI Updating old refernce time from FindMIssing %s", key)
 		ba.touchSpannerObjects(context.Background(), casTableName, keysToTouch, now)
 	}
 
@@ -1103,6 +1108,7 @@ func (ba *spannerGCSBlobAccess) addAssociationsToSpanner(ctx context.Context, ke
 		return nil
 	})
 	backendOperationsDurationSeconds.WithLabelValues(ba.storageType, BE_SPANNER, BE_DEL).Observe(time.Now().Sub(start).Seconds())
+	log.Printf("JODI Updating old refernce time for CAS %s from ADD ASSOCIATIONS function", key)
 	ba.touchSpannerObjects(ctx, casTableName, digestKeys, now)
 }
 

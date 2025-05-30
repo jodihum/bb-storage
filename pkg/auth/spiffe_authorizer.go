@@ -34,7 +34,6 @@ func NewSpiffeAuthorizer(config *pb.AuthorizerConfiguration) Authorizer {
 
 // Authorize implements the authorizer inferface
 func (s *SpiffeAuthorizer) Authorize(ctx context.Context, instanceNames []digest.InstanceName) []error {
-	log.Printf("JODI - in SpiffeAuthorizer")
 	fillErrors := func(err error) []error {
 		errs := make([]error, len(instanceNames))
 		if err != nil {
@@ -96,9 +95,6 @@ func (s *SpiffeAuthorizer) Authorize(ctx context.Context, instanceNames []digest
 		if !match {
 			errs[i] = status.Error(codes.PermissionDenied, "spiffe id doesn't match pattern")
 			log.Printf("SPIFFE Mismatch instance name %s, trust domain %s, path %s, matcher %s\n", instanceName.String(), id.TrustDomain().String(), id.Path(), subjectMatchers)
-		}
-		for err := range errs {
-			log.Printf("JODI - error: %v\n", err)
 		}
 	}
 	return errs
