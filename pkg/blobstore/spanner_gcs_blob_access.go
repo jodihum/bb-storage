@@ -769,7 +769,10 @@ func (ba *spannerGCSBlobAccess) Get(ctx context.Context, digest digest.Digest) b
 		// Update the ReferenceTime of the AC entry and of all CAS blobs this AC entry refers to.
 		go func() {
 			keys := []string{key}
-			go ba.touchSpannerObjects(context.Background(), tableName, keys, now)
+			//TODO JODI - only want to do this if more than 7 days old
+			if now.After(s.ReferenceTime.Add(ba.expirationAge/2)) {
+				go ba.touchSpannerObjects(context.Background(), tableName, keys, now)
+			}
 
 			stmt := spanner.NewStatement(`SELECT DigestKey FROM ` + assocTableName + ` WHERE ActionKey = @key`)
 			stmt.Params["key"] = key
@@ -791,14 +794,39 @@ func (ba *spannerGCSBlobAccess) Get(ctx context.Context, digest digest.Digest) b
 				return nil
 			})
 			if len(keysToTouch) != 0 {
+				// TODO JODI - But always do this? 
 				go spannerGCSCAS.touchSpannerObjects(context.Background(), casTableName, keysToTouch, now)
 			}
 		}()
 	} else {
-		keys := []string{key}
-		go ba.touchSpannerObjects(context.Background(), tableName, keys, now)
+		go ba.touchIndependentCASObjects(context.Background(), tableName, key, now)
 	}
 	return b
+}
+
+func (ba *spannerGCSBlobAccess) touchIndependentCASObjects(ctx context.Context, tableName string, key string, t time.Time) {
+	assoc_exists, _ := findAssocforCAS(ctx, key) 
+	if !assoc_exists {
+		keys := []string{key}
+		ba.touchSpannerObjects(context.Background(), tableName, keys, now)
+		log.Printf("JODI - No AC for key %s so updating ref time", key)
+	}
+}
+
+// TODO JODI - should we add an index on digest key
+func (ba *spannerGCSBlobAccess) findAssocforCAS(ctx context.Context, key string) (bool, error) {
+	ba.spannerClient.ReadTransaction(ctx, func(ctx context.Context, txn *spanner.ReadTransaction) error {
+		stmt := spanner.NewStatement(`SELECT EXISTS(SELECT * FROM ` + assocTableName + ` WHERE DigestKey = = @key)`)
+		stmt.Params["key"] = key
+		assoc_exists, err := txn.Update(ctx, stmt)
+		if err != nil {
+			log.Printf("JODI - Something went wrong seaching assoc table for digestKey %s:  %v", key, err)
+			return false, err
+		}
+		return assoc_exists, nil
+	})
+	backendOperationsDurationSeconds.WithLabelValues(ba.storageType, BE_SPANNER, BE_DEL).Observe(time.Now().Sub(start).Seconds())
+	ba.touchSpannerObjects(ctx, casTableName, digestKeys, now)
 }
 
 
