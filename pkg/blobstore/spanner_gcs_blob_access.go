@@ -805,7 +805,7 @@ func (ba *spannerGCSBlobAccess) Get(ctx context.Context, digest digest.Digest) b
 }
 
 func (ba *spannerGCSBlobAccess) touchIndependentCASObjects(ctx context.Context, tableName string, key string, t time.Time) {
-	assoc_exists, _ := ba.findAssocforCAS(ctx, key) 
+	assoc_exists, _ := ba.findAssocforCAS(ctx, key),  
 	if !assoc_exists {
 		keys := []string{key}
 		ba.touchSpannerObjects(context.Background(), tableName, keys, t)
@@ -815,18 +815,41 @@ func (ba *spannerGCSBlobAccess) touchIndependentCASObjects(ctx context.Context, 
 
 // TODO JODI - should we add an index on digest key
 func (ba *spannerGCSBlobAccess) findAssocforCAS(ctx context.Context, key string) (bool, error) {
-	ba.spannerClient.ReadOnlyTransaction(ctx, func(ctx context.Context, txn *spanner.ReadOnlyTransaction) error {
-		stmt := spanner.NewStatement(`SELECT EXISTS(SELECT * FROM ` + assocTableName + ` WHERE DigestKey = = @key)`)
-		stmt.Params["key"] = key
-		assoc_exists, err := txn.Update(ctx, stmt)
+	var assocExists bool
+	_, err := ba.spannerClient.ReadOnlyTransaction().Do(ctx, func(ctx context.Context, txn *spanner.ReadOnlyTransaction) error {
+		stmt := spanner.Statement{
+			SQL: `SELECT EXISTS(SELECT * FROM ` + assocTableName + ` WHERE DigestKey = @key)`,
+			Params: map[string]interface{} {
+				"key": key,
+			}.
+		}
+		iter := txn.Query(ctx, stmt)
+		defer iter.Stop()
+
+		row, err := iter.Next()
 		if err != nil {
 			log.Printf("JODI - Something went wrong seaching assoc table for digestKey %s:  %v", key, err)
-			return false, err
+			return err
 		}
-		return assoc_exists, nil
+		if row == nil {
+			assocExists = false
+			return nil
+		}
+		err = row.Columns(&assocExists)
+
+		if err != nil {
+			log.Printf("JODI - Something went wrong scanning row for digestKey %s:  %v", key, err)
+			return err
+		}
+		
+		return nil
 	})
-	backendOperationsDurationSeconds.WithLabelValues(ba.storageType, BE_SPANNER, BE_DEL).Observe(time.Now().Sub(start).Seconds())
-	ba.touchSpannerObjects(ctx, casTableName, digestKeys, now)
+
+	if err != nil {
+		return false, err
+	}
+
+	return assocExists, nil
 }
 
 
