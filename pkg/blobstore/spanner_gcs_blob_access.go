@@ -814,42 +814,34 @@ func (ba *spannerGCSBlobAccess) touchIndependentCASObjects(ctx context.Context, 
 	}
 }
 
-// TODO JODI - should we add an index on digest key
 func (ba *spannerGCSBlobAccess) findAssocforCAS(ctx context.Context, key string) (bool, error) {
 	var assocExists bool
-	_, err := ba.spannerClient.ReadOnlyTransaction().Do(ctx, func(ctx context.Context, txn *spanner.ReadOnlyTransaction) error {
-		stmt := spanner.Statement{
-			SQL: `SELECT EXISTS(SELECT * FROM ` + assocTableName + ` WHERE DigestKey = @key)`,
-			Params: map[string]interface{}{
-				"key": key,
-			},
-		}
-		iter := txn.Query(ctx, stmt)
-		defer iter.Stop()
-
-		row, err := iter.Next()
-		if err != nil {
-			log.Printf("JODI - Something went wrong seaching assoc table for digestKey %s:  %v", key, err)
-			return err
-		}
-		if row == nil {
-			log.Printf("JODI - Unexpected nil returned seraching assoc table for digestKey %s", key)
-			assocExists = false
-			return nil
-		}
-		err = row.Columns(&assocExists)
-
-		if err != nil {
-			log.Printf("JODI - Something went wrong scanning row for digestKey %s:  %v", key, err)
-			return err
-		}
+	txn := ba.spannerClient.ReadOnlyTransaction()
+	defer txn.Close()
+	
+	stmt := spanner.NewStatement(`SELECT EXISTS(SELECT * FROM ` + assocTableName + ` WHERE DigestKey = @key)`)
+	stmt.Params["key"] = key
 		
-		return nil
-	})
+	iter := txn.Query(ctx, stmt)
+	defer iter.Stop()
 
+	row, err := iter.Next()
 	if err != nil {
+		log.Printf("JODI - Something went wrong seaching assoc table for digestKey %s:  %v", key, err)
 		return false, err
 	}
+	if row == nil {
+		log.Printf("JODI - Unexpected nil returned seraching assoc table for digestKey %s", key)
+		assocExists = false
+		return false, nil
+	}
+	
+	err = row.Columns(&assocExists)
+
+	if err != nil {
+		log.Printf("JODI - Something went wrong scanning row for digestKey %s:  %v", key, err)
+		return false, err
+	}	
 
 	return assocExists, nil
 }
