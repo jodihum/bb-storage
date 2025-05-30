@@ -805,11 +805,12 @@ func (ba *spannerGCSBlobAccess) Get(ctx context.Context, digest digest.Digest) b
 }
 
 func (ba *spannerGCSBlobAccess) touchIndependentCASObjects(ctx context.Context, tableName string, key string, t time.Time) {
-	assoc_exists, _ := ba.findAssocforCAS(ctx, key),  
-	if !assoc_exists {
+	assoc_exists, err := ba.findAssocforCAS(ctx, key)
+
+	if err != nil || !assoc_exists {
 		keys := []string{key}
 		ba.touchSpannerObjects(context.Background(), tableName, keys, t)
-		log.Printf("JODI - No AC for key %s so updating ref time", key)
+		log.Printf("JODI - Unable to find AC for CAS key %s so updating ref time", key)
 	}
 }
 
@@ -819,9 +820,9 @@ func (ba *spannerGCSBlobAccess) findAssocforCAS(ctx context.Context, key string)
 	_, err := ba.spannerClient.ReadOnlyTransaction().Do(ctx, func(ctx context.Context, txn *spanner.ReadOnlyTransaction) error {
 		stmt := spanner.Statement{
 			SQL: `SELECT EXISTS(SELECT * FROM ` + assocTableName + ` WHERE DigestKey = @key)`,
-			Params: map[string]interface{} {
+			Params: map[string]interface{}{
 				"key": key,
-			}.
+			},
 		}
 		iter := txn.Query(ctx, stmt)
 		defer iter.Stop()
@@ -832,6 +833,7 @@ func (ba *spannerGCSBlobAccess) findAssocforCAS(ctx context.Context, key string)
 			return err
 		}
 		if row == nil {
+			log.Printf("JODI - Unexpected nil returned seraching assoc table for digestKey %s", key)
 			assocExists = false
 			return nil
 		}
