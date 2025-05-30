@@ -815,7 +815,7 @@ func (ba *spannerGCSBlobAccess) touchIndependentCASObjects(ctx context.Context, 
 
 // TODO JODI - should we add an index on digest key
 func (ba *spannerGCSBlobAccess) findAssocforCAS(ctx context.Context, key string) (bool, error) {
-	ba.spannerClient.ReadTransaction(ctx, func(ctx context.Context, txn *spanner.ReadTransaction) error {
+	ba.spannerClient.ReadOnlyTransaction(ctx, func(ctx context.Context, txn *spanner.ReadOnlyTransaction) error {
 		stmt := spanner.NewStatement(`SELECT EXISTS(SELECT * FROM ` + assocTableName + ` WHERE DigestKey = = @key)`)
 		stmt.Params["key"] = key
 		assoc_exists, err := txn.Update(ctx, stmt)
