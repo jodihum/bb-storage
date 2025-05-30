@@ -1038,7 +1038,7 @@ func (ba *spannerGCSBlobAccess) FindMissing(ctx context.Context, digests digest.
 	// efficient and prevent large CAS blobs from being evicted before and action cache entries that reference them.
 	now := time.Now().UTC()
 	if len(keysToTouch) != 0 {
-		log.Printf("JODI Updating old refernce time from FindMIssing %s", key)
+		log.Printf("JODI Updating old refernce time from FindMIssing for keysToTouch %v", keysToTouch)
 		ba.touchSpannerObjects(context.Background(), casTableName, keysToTouch, now)
 	}
 
