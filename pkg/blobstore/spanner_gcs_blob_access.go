@@ -785,19 +785,21 @@ func (ba *spannerGCSBlobAccess) Get(ctx context.Context, digest digest.Digest) b
 			backendOperationsDurationSeconds.WithLabelValues("CAS", BE_SPANNER, BE_TOUCH).Observe(time.Now().Sub(start).Seconds())
 			keysToTouch := make([]string, 0, 128)
 			iter.Do(func(row *spanner.Row) error {
-				var key string
-				err := row.Column(0, &key)
+				var digestkey string
+				err := row.Column(0, &digestkey)
 				if err != nil {
 					log.Printf("ERROR Column 0 wanted Key, got %v", err)
 				}
-				if key == "" {
+				if digestkey == "" {
+					log.Printf("JODI No DigestKeys for action key %s", key)
 					return nil
 				}
-				keysToTouch = append(keysToTouch, key)
+				log.Printf("JODI Found DigestKey %s for action key %s", digestkey, key)
+				keysToTouch = append(keysToTouch, digestkey)
 				return nil
 			})
 			if len(keysToTouch) != 0 {
-				// TODO JODI - But always do this? 
+				// TODO JODI - But always do this? It never seems to get here so maybe second part isn't redunant? Why doesn't it get here??
 				log.Printf("JODI GET Updating old refernce time for CAS %s", key)
 				go spannerGCSCAS.touchSpannerObjects(context.Background(), casTableName, keysToTouch, now)
 			}
