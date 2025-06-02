@@ -780,7 +780,7 @@ func (ba *spannerGCSBlobAccess) Get(ctx context.Context, digest digest.Digest) b
 			stmt := spanner.NewStatement(`SELECT DigestKey FROM ` + assocTableName + ` WHERE ActionKey = @key`)
 			stmt.Params["key"] = key
 			start := time.Now()
-			iter := spannerGCSCAS.spannerClient.Single().Query(ctx, stmt)
+			iter := ba.spannerClient.Single().Query(ctx, stmt)
 			defer iter.Stop()
 			backendOperationsDurationSeconds.WithLabelValues("CAS", BE_SPANNER, BE_TOUCH).Observe(time.Now().Sub(start).Seconds())
 			keysToTouch := make([]string, 0, 128)
@@ -820,13 +820,11 @@ func (ba *spannerGCSBlobAccess) touchIndependentCASObjects(ctx context.Context, 
 
 func (ba *spannerGCSBlobAccess) findAssocforCAS(ctx context.Context, key string) (bool, error) {
 	var assocExists bool
-	txn := ba.spannerClient.ReadOnlyTransaction()
-	defer txn.Close()
 	
 	stmt := spanner.NewStatement(`SELECT EXISTS(SELECT * FROM ` + assocTableName + ` WHERE DigestKey = @key)`)
 	stmt.Params["key"] = key
 		
-	iter := txn.Query(ctx, stmt)
+	iter := ba.spannerClient.Single().Query(ctx, stmt)
 	defer iter.Stop()
 
 	row, err := iter.Next()
