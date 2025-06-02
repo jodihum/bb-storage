@@ -771,10 +771,10 @@ func (ba *spannerGCSBlobAccess) Get(ctx context.Context, digest digest.Digest) b
 			keys := []string{key}
 			//TODO JODI - only want to do this if more than 7 days old
 			if now.After(s.ReferenceTime.Add(ba.expirationAge/2)) {
-				log.Printf("JODI Updating old refernce time for AC %s", key)
+				log.Printf("JODI GET Updating old reference time for AC %s", key)
 				go ba.touchSpannerObjects(context.Background(), tableName, keys, now)
 			} else {
-				log.Printf("JODI NOT Updating old refernce time for AC %s", key)
+				log.Printf("JODI GET NOT Updating old refernce time for AC %s", key)
 			}
 
 			stmt := spanner.NewStatement(`SELECT DigestKey FROM ` + assocTableName + ` WHERE ActionKey = @key`)
@@ -798,7 +798,7 @@ func (ba *spannerGCSBlobAccess) Get(ctx context.Context, digest digest.Digest) b
 			})
 			if len(keysToTouch) != 0 {
 				// TODO JODI - But always do this? 
-				log.Printf("JODI Updating old refernce time for CAS %s", key)
+				log.Printf("JODI GET Updating old refernce time for CAS %s", key)
 				go spannerGCSCAS.touchSpannerObjects(context.Background(), casTableName, keysToTouch, now)
 			}
 		}()
@@ -812,11 +812,7 @@ func (ba *spannerGCSBlobAccess) touchIndependentCASObjects(ctx context.Context, 
 	assoc_exists, err := ba.findAssocforCAS(ctx, key)
 
 	if err != nil || !assoc_exists {
-		log.Printf("JODI - Unable to find AC for CAS key %s so updating ref time", key)
-		keys := []string{key}
-		ba.touchSpannerObjects(context.Background(), tableName, keys, t)
-	} else {
-		log.Printf("JODI - Found AC for  key %s so  NOT updating ref time", key)
+		log.Printf("JODI - GET Found AC for  key %s so  NOT updating ref time", key)
 	}
 }
 
@@ -1067,7 +1063,7 @@ func (ba *spannerGCSBlobAccess) touchSpannerObjects(ctx context.Context, tableNa
 		_, err := txn.Update(ctx, stmt)
 		if err != nil {
 			spannerReftimeUpdateFailedCount.Inc()
-			log.Printf("Can't update reftime in %d Blobs: %v", len(keys), err)
+			log.Printf("Can't update reftime in %d Blobs %v with error: %v", len(keys), keys, err)
 			return err
 		}
 		return nil
