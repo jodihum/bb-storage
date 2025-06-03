@@ -780,7 +780,10 @@ func (ba *spannerGCSBlobAccess) Get(ctx context.Context, digest digest.Digest) b
 			stmt := spanner.NewStatement(`SELECT DigestKey FROM ` + assocTableName + ` WHERE ActionKey = @key`)
 			stmt.Params["key"] = key
 			start := time.Now()
-			iter := ba.spannerClient.Single().Query(ctx, stmt)
+			if spannerGCSCAS == nil {
+				log.Print("JODI SPANNERGCSCAS is nil")
+			}
+			iter := spannerGCSCAS.spannerClient.Single().Query(ctx, stmt)
 			defer iter.Stop()
 			backendOperationsDurationSeconds.WithLabelValues("CAS", BE_SPANNER, BE_TOUCH).Observe(time.Now().Sub(start).Seconds())
 			keysToTouch := make([]string, 0, 128)
