@@ -816,8 +816,12 @@ func (ba *spannerGCSBlobAccess) Get(ctx context.Context, digest digest.Digest) b
 func (ba *spannerGCSBlobAccess) touchIndependentCASObjects(ctx context.Context, tableName string, key string, t time.Time) {
 	assoc_exists, err := ba.findAssocforCAS(ctx, key)
 
-	if err != nil || !assoc_exists {
-		log.Printf("JODI - GET Found AC for  key %s so  NOT updating ref time", key)
+	if err != nil || !assoc_exists {Add commentMore actions
+		log.Printf("JODI - Unable to find AC for CAS key %s so updating ref time", key)
+		keys := []string{key}
+		ba.touchSpannerObjects(context.Background(), tableName, keys, t)
+	} else {
+		log.Printf("JODI - Found AC for  key %s so  NOT updating ref time", key)
 	}
 }
 
