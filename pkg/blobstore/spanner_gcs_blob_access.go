@@ -781,29 +781,38 @@ func (ba *spannerGCSBlobAccess) Get(ctx context.Context, digest digest.Digest) b
 			stmt.Params["key"] = key
 			start := time.Now()
 			if spannerGCSCAS == nil {
-				log.Print("JODI SPANNERGCSCAS is nil")
+				log.Print("JODI2 SPANNERGCSCAS is nil")
+			} else {
+				log.Print("JODI2 SPANNERGCSCAS is NOT nil")
 			}
+
 			iter := spannerGCSCAS.spannerClient.Single().Query(ctx, stmt)
 			defer iter.Stop()
+
+			log.Printf("JODI2 Row iterator: %p", iter)
+			
 			backendOperationsDurationSeconds.WithLabelValues("CAS", BE_SPANNER, BE_TOUCH).Observe(time.Now().Sub(start).Seconds())
 			keysToTouch := make([]string, 0, 128)
 			iter.Do(func(row *spanner.Row) error {
+				log.Printf("JODI2 Row: %v", row)
+				
+
 				var digestkey string
 				err := row.Column(0, &digestkey)
 				if err != nil {
-					log.Printf("ERROR Column 0 wanted Key, got %v", err)
+					log.Printf("JODI2 ERROR Column 0 wanted Key, got %v", err)
 				}
 				if digestkey == "" {
-					log.Printf("JODI No DigestKeys for action key %s", key)
+					log.Printf("JODI2 No DigestKeys for action key %s", key)
 					return nil
 				}
-				log.Printf("JODI Found DigestKey %s for action key %s", digestkey, key)
+				log.Printf("JODI2 Found DigestKey %s for action key %s", digestkey, key)
 				keysToTouch = append(keysToTouch, digestkey)
 				return nil
 			})
 			if len(keysToTouch) != 0 {
 				// TODO JODI - But always do this? It never seems to get here so maybe second part isn't redunant? Why doesn't it get here??
-				log.Printf("JODI GET Updating old refernce time for CAS %s", key)
+				log.Printf("JODI2 GET Updating old refernce time for CAS %s", key)
 				go spannerGCSCAS.touchSpannerObjects(context.Background(), casTableName, keysToTouch, now)
 			}
 		}()
@@ -901,7 +910,7 @@ func (ba *spannerGCSBlobAccess) Put(ctx context.Context, digest digest.Digest, b
 			storage.WithBackoff(gax.Backoff{
 				// Set the initial retry delay. The length of
 				// pauses between retries is subject to random jitter.
-				Initial: 1 * time.Second,
+				Initial: 3 * time.Second,
 				Max: 3600 * time.Second,
 				// Set the backoff multiplier 
 				Multiplier: 3,
