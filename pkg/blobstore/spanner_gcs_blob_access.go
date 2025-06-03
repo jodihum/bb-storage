@@ -902,9 +902,9 @@ func (ba *spannerGCSBlobAccess) Put(ctx context.Context, digest digest.Digest, b
 				// Set the initial retry delay. The length of
 				// pauses between retries is subject to random jitter.
 				Initial: 1 * time.Second,
-				Max: 900 * time.Second,
+				Max: 3600 * time.Second,
 				// Set the backoff multiplier 
-				Multiplier: 2,
+				Multiplier: 3,
 			}),
 			// Use WithPolicy to customize retry so that all requests are retried even
 			// if they are non-idempotent.
