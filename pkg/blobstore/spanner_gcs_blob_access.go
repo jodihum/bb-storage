@@ -816,7 +816,7 @@ func (ba *spannerGCSBlobAccess) Get(ctx context.Context, digest digest.Digest) b
 				
 
 				var digestkey string
-				err := row.Column(0, &digestkey)
+				err = row.Column(0, &digestkey)
 				if err != nil {
 					log.Printf("JODI2 ERROR Column 0 wanted Key, got %v", err)
 					continue
