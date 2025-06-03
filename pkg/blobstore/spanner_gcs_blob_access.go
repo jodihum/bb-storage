@@ -777,23 +777,41 @@ func (ba *spannerGCSBlobAccess) Get(ctx context.Context, digest digest.Digest) b
 				log.Printf("JODI GET NOT Updating old refernce time for AC %s", key)
 			}
 
+			log.Printf("JODI2 Assoc table name %s,  Key %s", assocTableName, key)
+
 			stmt := spanner.NewStatement(`SELECT DigestKey FROM ` + assocTableName + ` WHERE ActionKey = @key`)
 			stmt.Params["key"] = key
 			start := time.Now()
-			if spannerGCSCAS == nil {
-				log.Print("JODI2 SPANNERGCSCAS is nil")
-			} else {
-				log.Print("JODI2 SPANNERGCSCAS is NOT nil")
-			}
+			// if spannerGCSCAS == nil {
+			// 	log.Print("JODI2 SPANNERGCSCAS is nil")
+			// } else {
+			// 	log.Print("JODI2 SPANNERGCSCAS is NOT nil")
+			// }
 
+			log.Printf("JODI2 Query: %s,  Key %s", stmt.SQL, key)
 			iter := spannerGCSCAS.spannerClient.Single().Query(ctx, stmt)
+			if iter == nil {
+				log.Println("JODI2 iter is NIL")
+			}
 			defer iter.Stop()
 
 			log.Printf("JODI2 Row iterator: %p", iter)
 			
-			backendOperationsDurationSeconds.WithLabelValues("CAS", BE_SPANNER, BE_TOUCH).Observe(time.Now().Sub(start).Seconds())
+			// backendOperationsDurationSeconds.WithLabelValues("CAS", BE_SPANNER, BE_TOUCH).Observe(time.Now().Sub(start).Seconds())
 			keysToTouch := make([]string, 0, 128)
-			iter.Do(func(row *spanner.Row) error {
+
+			for {
+				row, err := iter.Next()
+			    if err == iterator.Done {
+					log.Println("JODI2 Iteration complete")
+					break
+				}
+				if err != nil {
+					log.Printf("JODI2 ERROR iterating: %v", err)
+					backendOperationsDurationSeconds.WithLabelValues("CAS", BE_SPANNER, BE_TOUCH).Observe(time.Now().Sub(start).Seconds())
+				}
+
+			// iter.Do(func(row *spanner.Row) error {
 				log.Printf("JODI2 Row: %v", row)
 				
 
@@ -801,15 +819,18 @@ func (ba *spannerGCSBlobAccess) Get(ctx context.Context, digest digest.Digest) b
 				err := row.Column(0, &digestkey)
 				if err != nil {
 					log.Printf("JODI2 ERROR Column 0 wanted Key, got %v", err)
+					continue
 				}
 				if digestkey == "" {
 					log.Printf("JODI2 No DigestKeys for action key %s", key)
-					return nil
+					continue
 				}
 				log.Printf("JODI2 Found DigestKey %s for action key %s", digestkey, key)
 				keysToTouch = append(keysToTouch, digestkey)
-				return nil
-			})
+
+			}
+			backendOperationsDurationSeconds.WithLabelValues("CAS", BE_SPANNER, BE_TOUCH).Observe(time.Now().Sub(start).Seconds())
+
 			if len(keysToTouch) != 0 {
 				// TODO JODI - But always do this? It never seems to get here so maybe second part isn't redunant? Why doesn't it get here??
 				log.Printf("JODI2 GET Updating old refernce time for CAS %s", key)
