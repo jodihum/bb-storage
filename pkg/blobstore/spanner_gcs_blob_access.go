@@ -59,7 +59,6 @@ import (
 
 	remoteexecution "github.com/bazelbuild/remote-apis/build/bazel/remote/execution/v2"
 	"github.com/googleapis/gax-go/v2"
-	"google.golang.org/api/iterator"
 )
 
 const (
@@ -803,7 +802,7 @@ func (ba *spannerGCSBlobAccess) Get(ctx context.Context, digest digest.Digest) b
 
 			for {
 				row, err := iter.Next()
-			    if err == iter.Done {
+			    if err == io.EOF {
 					log.Println("JODI2 Iteration complete")
 					break
 				}
